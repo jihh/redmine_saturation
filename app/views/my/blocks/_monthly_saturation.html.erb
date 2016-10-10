@@ -1,0 +1,53 @@
+<%
+   self.class.send :include, CalendarsHelper
+   year = params[:year].to_i if params[:year] and params[:year].to_i > 1900
+   month = params[:month].to_i if params[:month] and params[:month].to_i.between?(1, 12)
+   year ||= User.current.today.year
+   month ||= User.current.today.month
+   calendar = Redmine::Helpers::Calendar.new(Date.civil(year, month, 1), current_language, :month)
+   summary = TimeEntry.where(:user_id => User.current.id).where(:spent_on => (calendar.startdt..calendar.enddt)).group(:spent_on).sum(:hours)
+%>
+<div class="contextual">
+  <%= link_to_previous_month year, month %> |  <%= link_to_next_month year, month %>
+</div>
+<h3><%= l :label_monthly_saturation %></h3>
+<table class="cal">
+  <thead>
+  <tr>
+    <th scope="col" title="<%= l(:label_week) %>" class="week-number"></th>
+    <% 7.times do |i| %>
+        <th scope="col"><%= day_name((calendar.first_wday+i)%7) %></th>
+    <% end %></tr>
+  </thead>
+  <tbody>
+  <tr>
+    <% day = calendar.startdt
+       while day <= calendar.enddt %>
+        <%= ("<td class='week-number' title='#{ l(:label_week) }'>#{(day+(11-day.cwday)%7).cweek}</td>".html_safe) if day.cwday == calendar.first_wday %>
+        <td class="<%= day.month==calendar.month ? 'even' : 'odd' %><%= ' today' if User.current.today == day %>">
+          <p class="day-num"><%= day.day %></p>
+
+          <div class="hours <%= 'alert' unless summary[day] == 8 %>"><%= summary[day] %></div>
+        </td>
+        <%= '</tr><tr>'.html_safe if day.cwday==calendar.last_wday and day!=calendar.enddt %>
+    <% day = day + 1
+       end %>
+  </tr>
+  </tbody>
+</table>
+
+<% content_for :header_tags do %>
+    <style>
+        div.hours {
+            font-size: xx-large;
+            width: 100%;
+            height: 50px;
+            line-height: 50px;
+            text-align: center;
+        }
+
+        div.alert {
+            color: red
+        }
+    </style>
+<% end %>
